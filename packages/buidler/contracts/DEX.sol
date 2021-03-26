@@ -33,4 +33,48 @@ contract DEX {
             input_reserve.mul(1000).add(input_amount_with_fee);
         return numerator / denominator;
     }
+
+    function ethToToken() public payable returns (uint256) {
+        uint256 token_reserve = token.balanceOf(address(this));
+        uint256 tokens_bought =
+            price(
+                msg.value,
+                address(this).balance.sub(msg.value),
+                token_reserve
+            );
+        require(token.transfer(msg.sender, tokens_bought));
+        return tokens_bought;
+    }
+
+    function tokenToEth(uint256 tokens) public returns (uint256) {
+        uint256 token_reserve = token.balanceOf(address(this));
+        uint256 eth_bought =
+            price(tokens, token_reserve, address(this).balance);
+        msg.sender.transfer(eth_bought);
+        require(token.transferFrom(msg.sender, address(this), tokens));
+        return eth_bought;
+    }
+
+    function deposit() public payable returns (uint256) {
+        uint256 eth_reserve = address(this).balance.sub(msg.value);
+        uint256 token_reserve = token.balanceOf(address(this));
+        uint256 token_amount =
+            (msg.value.mul(token_reserve) / eth_reserve).add(1);
+        uint256 liquidity_minted = msg.value.mul(totalLiquidity) / eth_reserve;
+        liquidity[msg.sender] = liquidity[msg.sender].add(liquidity_minted);
+        totalLiquidity = totalLiquidity.add(liquidity_minted);
+        require(token.transferFrom(msg.sender, address(this), token_amount));
+        return liquidity_minted;
+    }
+
+    function withdraw(uint256 amount) public returns (uint256, uint256) {
+        uint256 token_reserve = token.balanceOf(address(this));
+        uint256 eth_amount = amount.mul(address(this).balance) / totalLiquidity;
+        uint256 token_amount = amount.mul(token_reserve) / totalLiquidity;
+        liquidity[msg.sender] = liquidity[msg.sender].sub(eth_amount);
+        totalLiquidity = totalLiquidity.sub(eth_amount);
+        msg.sender.transfer(eth_amount);
+        require(token.transfer(msg.sender, token_amount), "TRANSFER FAILED");
+        return (eth_amount, token_amount);
+    }
 }
