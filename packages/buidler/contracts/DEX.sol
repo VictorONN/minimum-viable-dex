@@ -50,7 +50,8 @@ contract DEX {
         uint256 token_reserve = token.balanceOf(address(this));
         uint256 eth_bought =
             price(tokens, token_reserve, address(this).balance);
-        msg.sender.transfer(eth_bought);
+        (bool sent, bytes memory data) = msg.sender.call{value: eth_bought}("");
+        require(sent, "Failed to transfer Ether");
         require(token.transferFrom(msg.sender, address(this), tokens));
         return eth_bought;
     }
@@ -73,7 +74,8 @@ contract DEX {
         uint256 token_amount = amount.mul(token_reserve) / totalLiquidity;
         liquidity[msg.sender] = liquidity[msg.sender].sub(eth_amount);
         totalLiquidity = totalLiquidity.sub(eth_amount);
-        msg.sender.transfer(eth_amount);
+        (bool sent, bytes memory data) = msg.sender.call{value: eth_amount}("");
+        require(sent, "Failed to transfer Ether");
         require(token.transfer(msg.sender, token_amount), "TRANSFER FAILED");
         return (eth_amount, token_amount);
     }
